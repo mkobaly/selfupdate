@@ -1,18 +1,18 @@
 package selfupdate
 
 import (
-	"io/ioutil"
+	"os"
 	"testing"
 )
 
 func TestMinisign(t *testing.T) {
-	v := NewVerifier()
+	v := NewFileVerifier()
 	err := v.LoadFromFile("LICENSE.minisig", "RWQhjNB8gjlNDQYRsRiGEzKTtGwzkcFLRMiSEy+texbTAVMvsgFLLfSr")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	buf, err := ioutil.ReadFile("LICENSE")
+	buf, err := os.ReadFile("LICENSE")
 	if err != nil {
 		t.Fatal(err)
 	}

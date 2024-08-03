@@ -8,12 +8,53 @@ import (
 	"aead.dev/minisign"
 )
 
-type Verifier struct {
+type Verifier interface {
+	Verify(bin []byte) error
+}
+
+type FileVerifier struct {
 	publicKey minisign.PublicKey
 	signature minisign.Signature
 }
 
-func (v *Verifier) LoadFromURL(signatureURL string, passphrase string, transport http.RoundTripper) error {
+func (v *FileVerifier) LoadFromFile(signaturePath string, passphrase string) error {
+	var publicKey minisign.PublicKey
+	if err := publicKey.UnmarshalText([]byte(passphrase)); err != nil {
+		return err
+	}
+	signature, err := minisign.SignatureFromFile(signaturePath)
+	if err != nil {
+		return err
+	}
+	v.publicKey, v.signature = publicKey, signature
+	return nil
+}
+
+func NewFileVerifier() *FileVerifier {
+	return &FileVerifier{}
+}
+
+func (v *FileVerifier) Verify(bin []byte) error {
+	signature, err := v.signature.MarshalText()
+	if err != nil {
+		return err
+	}
+	if !minisign.Verify(v.publicKey, bin, signature) {
+		return errors.New("selfupdate: signature verification failed")
+	}
+	return nil
+}
+
+type HttpVerifier struct {
+	publicKey minisign.PublicKey
+	signature minisign.Signature
+}
+
+func NewHttpVerifier() *HttpVerifier {
+	return &HttpVerifier{}
+}
+
+func (v *HttpVerifier) LoadFromURL(signatureURL string, passphrase string, transport http.RoundTripper) error {
 	var publicKey minisign.PublicKey
 	if err := publicKey.UnmarshalText([]byte(passphrase)); err != nil {
 		return err
@@ -46,24 +87,7 @@ func (v *Verifier) LoadFromURL(signatureURL string, passphrase string, transport
 	return nil
 }
 
-func (v *Verifier) LoadFromFile(signaturePath string, passphrase string) error {
-	var publicKey minisign.PublicKey
-	if err := publicKey.UnmarshalText([]byte(passphrase)); err != nil {
-		return err
-	}
-	signature, err := minisign.SignatureFromFile(signaturePath)
-	if err != nil {
-		return err
-	}
-	v.publicKey, v.signature = publicKey, signature
-	return nil
-}
-
-func NewVerifier() *Verifier {
-	return &Verifier{}
-}
-
-func (v *Verifier) Verify(bin []byte) error {
+func (v *HttpVerifier) Verify(bin []byte) error {
 	signature, err := v.signature.MarshalText()
 	if err != nil {
 		return err
